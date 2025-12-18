@@ -12,6 +12,10 @@ class TicketRequest(BaseModel):
     customer_id: str = Field(..., description="Customer identifier")
     subject: str = Field(..., min_length=1, max_length=200, description="Ticket subject")
     body: str = Field(..., min_length=1, max_length=5000, description="Ticket description")
+    email: Optional[str] = Field(
+        default=None,
+        description="Customer email address for notifications",
+    )
     category_hint: Optional[str] = Field(
         default=None,
         description="Optional category hint (billing, technical, account)",

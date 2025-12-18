@@ -30,8 +30,8 @@ class TicketResolution(BaseModel):
 class TicketMetadata(BaseModel):
     """Model for ticket processing metadata."""
 
-    token_usage: Dict[str, int] = Field(default_factory=dict)
-    latency_ms: Dict[str, int] = Field(default_factory=dict)
+    token_usage: Dict[str, Any] = Field(default_factory=dict)
+    latency_ms: Dict[str, Any] = Field(default_factory=dict)
     error_count: int = 0
     retry_count: int = 0
 

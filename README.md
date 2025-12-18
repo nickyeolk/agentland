@@ -54,18 +54,38 @@ curl -X POST "http://localhost:8000/tickets" \
 
 ### Run Tests
 
+The project includes 40 comprehensive tests with 83% code coverage:
+
 ```bash
-# All tests
+# All tests (40 tests: 21 unit + 10 integration + 9 evaluation)
 make test
 
-# Unit tests only
+# Unit tests only (21 tests)
 make test-unit
 
-# Integration tests only
+# Integration tests only (10 tests)
 make test-integration
 
-# Evaluation tests only
+# Evaluation tests only (9 tests)
 make test-evaluation
+```
+
+**Unit Tests (21 tests):**
+- `tests/unit/test_agents/` - Agent behavior and routing logic (3 tests)
+- `tests/unit/test_tools/` - Database, email, and payment tools (12 tests)
+- `tests/unit/test_llm/` - LLM client and mock responses (6 tests)
+
+**Integration Tests (10 tests):**
+- `tests/integration/test_workflow.py` - End-to-end ticket processing (5 tests)
+- `tests/integration/test_api.py` - API endpoint functionality (5 tests)
+
+**Evaluation Tests (9 tests):**
+- `tests/evaluation/` - Routing accuracy, tool usage, and performance benchmarks
+
+**Test Results:**
+```
+====================== 40 passed, 153 warnings in 48.65s =======================
+Code Coverage: 83%
 ```
 
 ### Run Evaluation
@@ -134,13 +154,7 @@ The system uses a multi-agent architecture with:
 
 ## Evaluation
 
-Comprehensive evaluation framework with 40+ test cases:
-
-### Test Datasets
-- **Billing Cases** (10 tests): Refunds, charges, subscriptions
-- **Technical Cases** (10 tests): API errors, performance, integration issues
-- **Account Cases** (10 tests): Password resets, security, profile updates
-- **Edge Cases** (10 tests): GDPR, legal, multi-issue, vague requests
+Comprehensive evaluation framework with custom metrics:
 
 ### Custom Metrics
 - **RoutingAccuracyMetric**: Validates triage decisions (90% threshold)
@@ -159,15 +173,15 @@ Comprehensive evaluation framework with 40+ test cases:
 python scripts/run_evaluation.py
 
 # Individual test suites
-python tests/evaluation/test_routing_eval.py
-python tests/evaluation/test_tool_usage_eval.py
-python tests/evaluation/test_benchmark.py
+pytest tests/evaluation/test_routing_eval.py -v
+pytest tests/evaluation/test_tool_usage_eval.py -v
+pytest tests/evaluation/test_benchmark.py -v
 
 # Or use make
 make evaluate
 ```
 
-Results are saved to `evaluation_reports/` with detailed JSON output.
+Results include detailed routing accuracy, tool usage analysis, and performance metrics.
 
 ## Configuration
 
