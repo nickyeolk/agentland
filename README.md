@@ -40,15 +40,134 @@ The API will be available at:
 
 ### 4. Test the API
 
+Try these example API calls to see the multi-agent system in action:
+
+#### Example 1: Billing Issue
+
 ```bash
 curl -X POST "http://localhost:8000/tickets" \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "C12345",
     "subject": "Issue with billing",
-    "body": "I was charged twice this month"
+    "body": "I was charged twice this month",
+    "email": "john.doe@example.com"
   }'
 ```
+
+**Expected Response:**
+- **Routing**: Triage agent routes to `billing_agent` with 92% confidence
+- **Tools Used**: `database_query` (retrieves payment history), `email_sender` (sends confirmation)
+- **Resolution**: Reviews payment history, explains charges are normal monthly subscriptions
+- **Observability**: Full trace with correlation ID, token usage tracking, latency metrics
+
+<details>
+<summary>View sample JSON response</summary>
+
+```json
+{
+  "ticket_id": "T-abc12345",
+  "correlation_id": "CID-...",
+  "routing": {
+    "assigned_agent": "billing_agent",
+    "urgency": "medium",
+    "confidence_score": 0.92
+  },
+  "agent_interactions": [
+    {
+      "agent_name": "triage_agent",
+      "action": "route",
+      "reasoning": "Customer mentions billing-related terms"
+    },
+    {
+      "agent_name": "billing_agent",
+      "action": "resolve",
+      "tool_calls": [
+        {
+          "tool": "database_query",
+          "output": {
+            "found": true,
+            "payments": [
+              {"payment_id": "PAY-001", "date": "2024-11-01", "amount": 49.99},
+              {"payment_id": "PAY-002", "date": "2024-12-01", "amount": 49.99}
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "resolution": {
+    "status": "resolved",
+    "response": "I've reviewed your payment history and found the following charges:\n- 2024-11-01: $49.99 (completed) - Pro subscription - November\n- 2024-12-01: $49.99 (completed) - Pro subscription - December\n\nThese appear to be your regular monthly subscription charges..."
+  },
+  "metadata": {
+    "token_usage": {"triage": {"prompt": 662, "completion": 27}, "billing": {"prompt": 675, "completion": 132}},
+    "latency_ms": {"triage": 110, "billing": 115}
+  }
+}
+```
+</details>
+
+---
+
+#### Example 2: Technical Support Issue
+
+```bash
+curl -X POST "http://localhost:8000/tickets" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "C12345",
+    "subject": "API keeps returning 500 errors",
+    "body": "Our production app is getting 500 errors from your API endpoint. This started happening 2 hours ago."
+  }'
+```
+
+**Expected Response:**
+- **Routing**: Routes to `technical_agent` with 88% confidence, marked as HIGH urgency
+- **Tools Used**: `knowledge_base` (searches technical articles), `email_sender`
+- **Resolution**: Provides troubleshooting steps based on KB articles
+- **Performance**: ~225ms total latency (110ms triage + 115ms technical)
+
+---
+
+#### Example 3: Account Management
+
+```bash
+curl -X POST "http://localhost:8000/tickets" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "C67890",
+    "subject": "Need to reset my password",
+    "body": "I forgot my password and cannot access my account",
+    "email": "jane.smith@example.com"
+  }'
+```
+
+**Expected Response:**
+- **Routing**: Routes to `account_agent` with 85% confidence
+- **Tools Used**: `database_query` (retrieves account info), `email_sender` (sends reset link)
+- **Resolution**: Sends secure password reset link to registered email
+- **Security**: Verifies customer identity before sending sensitive links
+
+---
+
+#### Example 4: View Metrics
+
+```bash
+# Check Prometheus metrics
+curl http://localhost:8000/metrics
+
+# Check health status
+curl http://localhost:8000/health
+```
+
+**Available Metrics:**
+- `agent_invocation_count` - Agent usage statistics
+- `agent_decision_latency_seconds` - Performance histograms
+- `tool_call_count` - Tool usage tracking
+- `llm_tokens_used` - Token consumption by agent
+- `llm_api_cost_dollars` - Cost tracking per agent
+- `tickets_processed_total` - Business metrics
 
 ## Development
 

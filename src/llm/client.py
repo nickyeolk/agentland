@@ -132,18 +132,121 @@ class MockAnthropicClient:
 
         # Billing agent responses
         elif "billing" in system.lower():
-            return "I understand you're experiencing a billing issue. Let me check your payment history and help resolve this for you. I'll process a refund for any duplicate charges."
+            return self._generate_billing_response(user_message)
 
         # Technical agent responses
         elif "technical" in system.lower():
-            return "I've identified the technical issue you're experiencing. Let me walk you through the troubleshooting steps to resolve this problem."
+            return self._generate_technical_response(user_message)
 
         # Account agent responses
         elif "account" in system.lower():
-            return "I can help you with your account management request. I'll update your account settings and send you a confirmation email."
+            return self._generate_account_response(user_message)
 
         # Default response
         return "Thank you for contacting support. I'll help you with your request right away."
+
+    def _generate_billing_response(self, user_message: str) -> str:
+        """Generate context-aware billing response."""
+        import re
+        from datetime import datetime, timedelta
+
+        # Parse payment history from context
+        payment_pattern = r'- (\d{4}-\d{2}-\d{2}): \$(\d+\.\d{2}) \((\w+)\) - ([^\n]+)'
+        payments = re.findall(payment_pattern, user_message)
+
+        if payments:
+            response_parts = ["I've reviewed your payment history and found the following charges:\n"]
+            for date, amount, status, description in payments:
+                response_parts.append(f"- {date}: ${amount} ({status}) - {description}")
+
+            # Analyze for duplicate charges
+            amounts = [float(amt) for _, amt, _, _ in payments]
+            dates_str = [date for date, _, _, _ in payments]
+
+            # Check for actual duplicates (same day or within a few days)
+            is_duplicate = False
+            if len(dates_str) >= 2:
+                try:
+                    date1 = datetime.strptime(dates_str[0], '%Y-%m-%d')
+                    date2 = datetime.strptime(dates_str[1], '%Y-%m-%d')
+                    days_apart = abs((date2 - date1).days)
+
+                    # If same amount and within 7 days, likely a duplicate
+                    if amounts[0] == amounts[1] and days_apart <= 7:
+                        is_duplicate = True
+                except ValueError:
+                    pass
+
+            if is_duplicate:
+                response_parts.append(f"\n**ISSUE DETECTED**: I found duplicate charges of ${amounts[0]:.2f} on {dates_str[0]} and {dates_str[1]}, which are only {days_apart} days apart. This appears to be an error.")
+                response_parts.append(f"\n**ACTION: PROCESS_REFUND** - I'm processing a refund of ${amounts[0]:.2f} for the duplicate charge. You should see the refund in 3-5 business days.")
+            elif len(amounts) >= 2 and amounts[0] == amounts[1]:
+                # Same amount but dates far apart (normal monthly billing)
+                response_parts.append(f"\nI notice you have two charges of ${amounts[0]:.2f}. Looking at the dates ({dates_str[0]} and {dates_str[1]}), these appear to be your regular monthly subscription charges for consecutive months, which is **normal billing behavior**.")
+                response_parts.append("\nNo refund is needed. However, if you'd like to cancel your subscription to avoid future charges, I can help with that.")
+            else:
+                response_parts.append("\nYour payment history shows regular billing activity. All charges appear to be legitimate. If you have specific concerns about any charge, please let me know.")
+
+            return "\n".join(response_parts)
+        else:
+            return "I understand you're experiencing a billing issue. Let me check your payment history and help resolve this for you. I'll investigate and determine if a refund is warranted."
+
+    def _generate_technical_response(self, user_message: str) -> str:
+        """Generate context-aware technical response."""
+        # Extract knowledge base articles if present
+        import re
+        kb_pattern = r'Article ID: (KB-\d+)[^\n]*\n\s*Title: ([^\n]+)'
+        articles = re.findall(kb_pattern, user_message)
+
+        if articles:
+            response = "I've found relevant troubleshooting information for your issue:\n\n"
+            for article_id, title in articles[:2]:  # Use top 2 articles
+                response += f"Based on {article_id} ({title}), here are the steps to resolve this:\n"
+                response += "1. Clear your browser cache and cookies\n"
+                response += "2. Try accessing the service in an incognito window\n"
+                response += "3. Check if your firewall is blocking the connection\n\n"
+            response += "If these steps don't resolve the issue, I can escalate this to our engineering team for further investigation."
+            return response
+        else:
+            return "I've identified the technical issue you're experiencing. Let me walk you through the troubleshooting steps to resolve this problem."
+
+    def _generate_account_response(self, user_message: str) -> str:
+        """Generate context-aware account management response."""
+        import re
+
+        user_lower = user_message.lower()
+
+        # Parse account information from context
+        name_match = re.search(r'Name: ([^\n]+)', user_message)
+        email_match = re.search(r'Email: ([^\n]+)', user_message)
+        tier_match = re.search(r'Tier: ([^\n]+)', user_message)
+        status_match = re.search(r'Status: ([^\n]+)', user_message)
+
+        customer_name = name_match.group(1) if name_match else "the customer"
+
+        # Password reset scenario
+        if "password" in user_lower and "reset" in user_lower:
+            return f"I've verified your account information for {customer_name}. I'm sending a secure password reset link to your registered email address. Please check your inbox and follow the instructions to reset your password. The link will expire in 24 hours for security purposes."
+
+        # Account access issues
+        elif "access" in user_lower or "login" in user_lower or "sign in" in user_lower:
+            if status_match and status_match.group(1).lower() == "active":
+                return f"I've checked your account status - your account is active and in good standing. If you're having trouble logging in, I've sent a verification link to your email. Please also check that you're using the correct email address and that your browser cookies are enabled."
+            else:
+                return f"I've reviewed your account status. There may be an issue with your account access. I'm sending you detailed instructions via email to help restore access. If the issue persists, we may need to escalate this to our security team."
+
+        # Profile/account information updates
+        elif "update" in user_lower or "change" in user_lower or "profile" in user_lower:
+            return f"I can help you update your account information. I've sent you a secure link to your email where you can modify your profile settings. For security reasons, some changes (like email address) may require additional verification."
+
+        # General inquiry
+        elif "question" in user_lower or "inquiry" in user_lower:
+            tier_info = f" As a {tier_match.group(1)} customer, " if tier_match else " "
+            return f"Thank you for reaching out!{tier_info}I'm here to help with any questions about your account or our service offerings. Could you provide more details about what you'd like to know? I can assist with account settings, subscription details, billing information, or general service questions."
+
+        # Default account response
+        else:
+            return f"I've reviewed your account for {customer_name}. I'm here to assist with your account-related request. I've sent a confirmation email with next steps. If you need immediate assistance, please let me know the specific details of what you'd like to update or change."
 
 
 class LLMClient:

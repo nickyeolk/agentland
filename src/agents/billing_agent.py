@@ -84,8 +84,8 @@ Analyze this billing issue and provide a solution. If you need to process a refu
 
         resolution_text = response.content
 
-        # Check if refund is mentioned
-        if "refund" in resolution_text.lower() and payment_history and payment_history.get("payments"):
+        # Check if LLM explicitly signals to process a refund
+        if "ACTION: PROCESS_REFUND" in resolution_text and payment_history and payment_history.get("payments"):
             # Process refund for the most recent payment
             recent_payment = payment_history["payments"][0]
 
